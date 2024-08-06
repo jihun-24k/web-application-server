@@ -2,13 +2,12 @@ package webserver;
 
 import db.DataBase;
 import http.HttpRequest;
+import http.HttpResponse;
 import java.io.DataOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.nio.file.Files;
 import java.util.Map;
 import model.User;
 import org.slf4j.Logger;
@@ -31,21 +30,17 @@ public class RequestHandler extends Thread {
         try (InputStream in = connection.getInputStream(); OutputStream out = connection.getOutputStream()) {
 
             HttpRequest httpRequest = new HttpRequest(in);
-
-            User createdUser = new User(
-                    httpRequest.getParameter("userId"),
-                    httpRequest.getParameter("password"),
-                    httpRequest.getParameter("name"),
-                    httpRequest.getParameter("email")
-            );
-            DataBase.addUser(createdUser);
-
-            DataOutputStream dos = new DataOutputStream(out);
-            byte[] body = new byte[0];
+            HttpResponse httpResponse = new HttpResponse(out);
 
             if (httpRequest.getPath().equals("/user/create")) {
-                response302Header(dos);
-                responseBody(dos, body);
+                User createdUser = new User(
+                        httpRequest.getParameter("userId"),
+                        httpRequest.getParameter("password"),
+                        httpRequest.getParameter("name"),
+                        httpRequest.getParameter("email")
+                );
+                DataBase.addUser(createdUser);
+                httpResponse.sendRedirect("/index.html");
             }
             else if (httpRequest.getPath().equals("/user/login")) {
                 if (httpRequest.getMethod().equals("POST")) {
@@ -53,9 +48,11 @@ public class RequestHandler extends Thread {
                     User user = DataBase.findUserById(userId);
 
                     if (user != null && user.getPassword().equals(httpRequest.getParameter("password"))) {
-                        responseSetCookieHeader(dos, "/index.html","logined=true");
+                        httpResponse.addHeader("Set-Cookie", "logined=true");
+                        httpResponse.sendRedirect("/index.html");
                     } else {
-                        responseSetCookieHeader(dos, "/user/login_failed.html", "logined=false");
+                        httpResponse.addHeader("Set-Cookie", "logined=false");
+                        httpResponse.sendRedirect("/user/login_failed.html");
                     }
                 }
             }
@@ -76,22 +73,15 @@ public class RequestHandler extends Thread {
                         userList.append("</tr>");
                     }
 
-                    body = userList.toString().getBytes();
-                    response200Header(dos, body.length);
+                    httpResponse.forwardBody(userList.toString());
                 }
                 else {
-                    response302Header(dos);
+                    httpResponse.sendRedirect("/index.html");
                 }
             }
-            else if (httpRequest.getPath().equals("/css/styles.css")) {
-                body = Files.readAllBytes(new File("./webapp" + httpRequest.getPath()).toPath());
-                responseCSSHeader(dos, body.length);
-            }
             else {
-                body = Files.readAllBytes(new File("./webapp" + httpRequest.getPath()).toPath());
-                response200Header(dos, body.length);
+                httpResponse.forward(httpRequest.getPath());
             }
-            responseBody(dos, body);
         } catch (IOException e) {
             log.error(e.getMessage());
         }

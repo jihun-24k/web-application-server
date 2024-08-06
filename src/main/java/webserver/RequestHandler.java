@@ -14,6 +14,7 @@ import java.net.Socket;
 
 import java.nio.file.Files;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import model.User;
 import org.slf4j.Logger;
@@ -97,7 +98,7 @@ public class RequestHandler extends Thread {
             byte[] body = new byte[0];
 
             if (requestUrl.equals("/user/create")) {
-                response302Header(dos, "/index.html");
+                response302Header(dos);
                 responseBody(dos, body);
             }
             else if (requestUrl.equals("/user/login")) {
@@ -110,6 +111,29 @@ public class RequestHandler extends Thread {
                     } else {
                         responseSetCookieHeader(dos, "/user/login_failed.html", "logined=false");
                     }
+                }
+            }
+            else if(requestUrl.equals("/user/list")) {
+                Map<String, String> cookies = HttpRequestUtils.parseCookies(httpHeader.get("Cookie"));
+                boolean isLogined = Boolean.parseBoolean(cookies.get("logined"));
+                if (isLogined) {
+                    StringBuilder userList = new StringBuilder();
+
+                    for (User user : DataBase.findAll()) {
+                        userList.append("<tr>");
+                        userList.append("<th scope='row'>").append(index++).append("</th>");
+                        userList.append("<td>").append(user.getUserId()).append("</td>");
+                        userList.append("<td>").append(user.getName()).append("</td>");
+                        userList.append("<td>").append(user.getEmail()).append("</td>");
+                        userList.append("<td><a href='#' class='btn btn-success' role='button'>수정</a></td>");
+                        userList.append("</tr>");
+                    }
+
+                    body = userList.toString().getBytes();
+                    response200Header(dos, body.length);
+                }
+                else {
+                    response302Header(dos);
                 }
             }
             else {
@@ -144,10 +168,10 @@ public class RequestHandler extends Thread {
         }
     }
 
-    private void response302Header(DataOutputStream dos, String responseUrl) {
+    private void response302Header(DataOutputStream dos) {
         try {
             dos.writeBytes("HTTP/1.1 302 Found \r\n");
-            dos.writeBytes("Location: "+ responseUrl +"\r\n");
+            dos.writeBytes("Location: /index.html \r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
             log.error(e.getMessage());

@@ -18,51 +18,56 @@ public class HttpRequest {
     private Map<String, String> params = new HashMap<>();
     private Map<String, String> header = new HashMap<>();
 
-    public HttpRequest(InputStream in) throws IOException {
-        BufferedReader bufferIn = new BufferedReader(new InputStreamReader(in));
+    public HttpRequest(InputStream in) {
+        try {
+            BufferedReader br = new BufferedReader(new InputStreamReader(in, "UTF-8"));
 
-        String line = bufferIn.readLine();
-        extractRequestLine(line);
-
-        log.debug("HTTP RequestLine Info = {}", line);
-        while (line != null && !"".equals(line)) {
-
-            line = bufferIn.readLine();
-            if (line == null || "".equals(line)) {
-                break;
+            String line = br.readLine();
+            if (line == null) {
+                return;
             }
-            extractHeader(line);
-        }
+            processRequestLine(line);
 
-        if (method.equals("POST")) {
-            int contentLength = Integer.parseInt(header.get("Content-Length"));
-            String body = IOUtils.readData(bufferIn, contentLength);
-            params = HttpRequestUtils.parseQueryString(body);
+            line = br.readLine();
+            while (!"".equals(line)) {
+                log.debug("header : {}", line);
+                processHeader(line);
+                line = br.readLine();
+            }
+
+            if (method.equals("POST")) {
+                int contentLength = Integer.parseInt(header.get("Content-Length"));
+                String body = IOUtils.readData(br, contentLength);
+                params = HttpRequestUtils.parseQueryString(body);
+            }
+        }
+        catch (IOException io) {
+            log.error(io.getMessage());
         }
     }
 
-    private void extractHeader(String line) {
-        log.debug("HTTP Header Info = {}", line);
-
-        String[] info = line.split(": ");
-        header.put(info[0], info[1]);
-    }
-
-    private void extractRequestLine(String line) {
+    private void processRequestLine(String line) {
         String[] tokens = line.split(" ");
 
         method = tokens[0];
         extractPathAndParams(tokens[1]);
     }
 
+    private void processHeader(String line) {
+        log.debug("HTTP Header Info = {}", line);
+
+        String[] info = line.split(": ");
+        header.put(info[0].trim(), info[1].trim());
+    }
+
     private void extractPathAndParams(String url) {
-        if (url.startsWith("/user/create?")) {
-            int index = url.indexOf("?");
-            path = url.substring(0, index);
-            params = HttpRequestUtils.parseQueryString(url.substring(index + 1));
+        int index = url.indexOf("?");
+        if (index == -1) {
+            path = url;
         }
         else {
-            path = url;
+            path = url.substring(0, index);
+            params = HttpRequestUtils.parseQueryString(url.substring(index + 1));
         }
     }
 
@@ -80,5 +85,9 @@ public class HttpRequest {
 
     public String getHeader(String key) {
         return header.get(key);
+    }
+
+    public boolean equalsMethod(String method) {
+        return this.method.equals(method);
     }
 }

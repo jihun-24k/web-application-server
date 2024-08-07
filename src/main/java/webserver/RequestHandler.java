@@ -1,6 +1,9 @@
 package webserver;
 
-import db.DataBase;
+import controller.Controller;
+import controller.CreateUserController;
+import controller.ListUserController;
+import controller.LoginController;
 import http.HttpRequest;
 import http.HttpResponse;
 import java.io.DataOutputStream;
@@ -8,11 +11,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.util.HashMap;
 import java.util.Map;
-import model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import util.HttpRequestUtils;
 
 public class RequestHandler extends Thread {
     private static final Logger log = LoggerFactory.getLogger(RequestHandler.class);
@@ -29,59 +31,18 @@ public class RequestHandler extends Thread {
 
         try (InputStream in = connection.getInputStream(); OutputStream out = connection.getOutputStream()) {
 
-            HttpRequest httpRequest = new HttpRequest(in);
-            HttpResponse httpResponse = new HttpResponse(out);
+            HttpRequest request = new HttpRequest(in);
+            HttpResponse response = new HttpResponse(out);
 
-            if (httpRequest.getPath().equals("/user/create")) {
-                User createdUser = new User(
-                        httpRequest.getParameter("userId"),
-                        httpRequest.getParameter("password"),
-                        httpRequest.getParameter("name"),
-                        httpRequest.getParameter("email")
-                );
-                DataBase.addUser(createdUser);
-                httpResponse.sendRedirect("/index.html");
-            }
-            else if (httpRequest.getPath().equals("/user/login")) {
-                if (httpRequest.getMethod().equals("POST")) {
-                    String userId = httpRequest.getParameter("userId");
-                    User user = DataBase.findUserById(userId);
+            Map<String, Controller> controllers = new HashMap<>();
 
-                    if (user != null && user.getPassword().equals(httpRequest.getParameter("password"))) {
-                        httpResponse.addHeader("Set-Cookie", "logined=true");
-                        httpResponse.sendRedirect("/index.html");
-                    } else {
-                        httpResponse.addHeader("Set-Cookie", "logined=false");
-                        httpResponse.sendRedirect("/user/login_failed.html");
-                    }
-                }
-            }
-            else if(httpRequest.getPath().equals("/user/list")) {
-                Map<String, String> cookies = HttpRequestUtils.parseCookies(httpRequest.getHeader("Cookie"));
-                boolean isLogined = Boolean.parseBoolean(cookies.get("logined"));
-                if (isLogined) {
-                    StringBuilder userList = new StringBuilder();
+            controllers.put("/user/create", new CreateUserController());
+            controllers.put("/user/login", new LoginController());
+            controllers.put("/user/list", new ListUserController());
 
-                    int index = 1;
-                    for (User user : DataBase.findAll()) {
-                        userList.append("<tr>");
-                        userList.append("<th scope='row'>").append(index++).append("</th>");
-                        userList.append("<td>").append(user.getUserId()).append("</td>");
-                        userList.append("<td>").append(user.getName()).append("</td>");
-                        userList.append("<td>").append(user.getEmail()).append("</td>");
-                        userList.append("<td><a href='#' class='btn btn-success' role='button'>수정</a></td>");
-                        userList.append("</tr>");
-                    }
+            Controller controller = controllers.get(request.getPath());
+            controller.service(request, response);
 
-                    httpResponse.forwardBody(userList.toString());
-                }
-                else {
-                    httpResponse.sendRedirect("/index.html");
-                }
-            }
-            else {
-                httpResponse.forward(httpRequest.getPath());
-            }
         } catch (IOException e) {
             log.error(e.getMessage());
         }

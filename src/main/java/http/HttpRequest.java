@@ -1,5 +1,6 @@
 package http;
 
+import enums.HttpMethod;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,8 +14,7 @@ import util.IOUtils;
 
 public class HttpRequest {
     private static final Logger log = LoggerFactory.getLogger(HttpRequest.class);
-    private String method;
-    private String path;
+    private RequestLine requestLine;
     private Map<String, String> params = new HashMap<>();
     private Map<String, String> header = new HashMap<>();
 
@@ -26,31 +26,29 @@ public class HttpRequest {
             if (line == null) {
                 return;
             }
-            processRequestLine(line);
+            requestLine = new RequestLine(line);
 
             line = br.readLine();
-            while (!"".equals(line)) {
+            while (!line.equals("")) {
                 log.debug("header : {}", line);
                 processHeader(line);
                 line = br.readLine();
+                if (line == null) {
+                    break;
+                }
             }
 
-            if (method.equals("POST")) {
+            if (getMethod().isPost()) {
                 int contentLength = Integer.parseInt(header.get("Content-Length"));
                 String body = IOUtils.readData(br, contentLength);
                 params = HttpRequestUtils.parseQueryString(body);
+            } else {
+                params = requestLine.getParams();
             }
         }
         catch (IOException io) {
             log.error(io.getMessage());
         }
-    }
-
-    private void processRequestLine(String line) {
-        String[] tokens = line.split(" ");
-
-        method = tokens[0];
-        extractPathAndParams(tokens[1]);
     }
 
     private void processHeader(String line) {
@@ -60,23 +58,12 @@ public class HttpRequest {
         header.put(info[0].trim(), info[1].trim());
     }
 
-    private void extractPathAndParams(String url) {
-        int index = url.indexOf("?");
-        if (index == -1) {
-            path = url;
-        }
-        else {
-            path = url.substring(0, index);
-            params = HttpRequestUtils.parseQueryString(url.substring(index + 1));
-        }
-    }
-
-    public String getMethod() {
-        return method;
+    public HttpMethod getMethod() {
+        return requestLine.getMethod();
     }
 
     public String getPath() {
-        return path;
+        return requestLine.getPath();
     }
 
     public String getParameter(String key) {
@@ -85,9 +72,5 @@ public class HttpRequest {
 
     public String getHeader(String key) {
         return header.get(key);
-    }
-
-    public boolean equalsMethod(String method) {
-        return this.method.equals(method);
     }
 }

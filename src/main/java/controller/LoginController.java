@@ -7,7 +7,7 @@ import model.User;
 
 public class LoginController extends AbstractController{
 
-    private void doPost(HttpRequest request, HttpResponse response) {
+    public void doPost(HttpRequest request, HttpResponse response) {
         String userId = request.getParameter("userId");
         User user = DataBase.findUserById(userId);
 

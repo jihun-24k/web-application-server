@@ -9,7 +9,7 @@ import util.HttpRequestUtils;
 
 public class ListUserController extends AbstractController{
 
-    private void doPost(HttpRequest request, HttpResponse response) {
+    public void doPost(HttpRequest request, HttpResponse response) {
         Map<String, String> cookies = HttpRequestUtils.parseCookies(request.getHeader("Cookie"));
 
         if (isLogin(cookies.get("logined"))) {

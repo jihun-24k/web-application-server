@@ -1,19 +1,23 @@
 package controller;
 
+import enums.HttpMethod;
 import http.HttpRequest;
 import http.HttpResponse;
 
 public class AbstractController implements Controller{
     @Override
     public void service(HttpRequest request, HttpResponse response) {
-        if (request.equalsMethod("GET")) {
+        HttpMethod method = request.getMethod();
+
+        if (method.isGet()) {
             doGet(request, response);
         }
-        if (request.equalsMethod("POST")) {
+        if (method.isPost()) {
             doPost(request, response);
         }
 
     }
-    private void doGet(HttpRequest request, HttpResponse response) {}
-    private void doPost(HttpRequest request, HttpResponse response) {}
+
+    protected void doGet(HttpRequest request, HttpResponse response) {}
+    protected void doPost(HttpRequest request, HttpResponse response) {}
 }

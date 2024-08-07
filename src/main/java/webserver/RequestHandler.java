@@ -6,7 +6,6 @@ import controller.ListUserController;
 import controller.LoginController;
 import http.HttpRequest;
 import http.HttpResponse;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -34,68 +33,23 @@ public class RequestHandler extends Thread {
             HttpRequest request = new HttpRequest(in);
             HttpResponse response = new HttpResponse(out);
 
-            Map<String, Controller> controllers = new HashMap<>();
-
-            controllers.put("/user/create", new CreateUserController());
-            controllers.put("/user/login", new LoginController());
-            controllers.put("/user/list", new ListUserController());
-
-            Controller controller = controllers.get(request.getPath());
-            controller.service(request, response);
+            Controller controller = RequestMapping.getController(request.getPath());
+            if (controller == null) {
+                String path = getDefaultPath(request.getPath());
+                response.forward(path);
+            } else {
+                controller.service(request, response);
+            }
 
         } catch (IOException e) {
             log.error(e.getMessage());
         }
     }
 
-    private void responseSetCookieHeader(DataOutputStream dos, String responseUrl, String cookieStatus) {
-        try {
-            dos.writeBytes("HTTP/1.1 302 OK \r\n");
-            dos.writeBytes("Location: "+ responseUrl +"\r\n");
-            dos.writeBytes("Set-Cookie: " + cookieStatus + "\r\n");
-            dos.writeBytes("\r\n");
-        } catch (IOException e) {
-            log.error(e.getMessage());
+    private String getDefaultPath(String path) {
+        if (path.equals("/")) {
+            return "/index.html";
         }
-    }
-
-    private void response200Header(DataOutputStream dos, int lengthOfBodyContent) {
-        try {
-            dos.writeBytes("HTTP/1.1 200 OK \r\n");
-            dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
-            dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
-            dos.writeBytes("\r\n");
-        } catch (IOException e) {
-            log.error(e.getMessage());
-        }
-    }
-    private void responseCSSHeader(DataOutputStream dos, int lengthOfBodyContent) {
-        try {
-            dos.writeBytes("HTTP/1.1 200 OK \r\n");
-            dos.writeBytes("Content-Type: text/css;\r\n");
-            dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
-            dos.writeBytes("\r\n");
-        } catch (IOException e) {
-            log.error(e.getMessage());
-        }
-    }
-
-    private void response302Header(DataOutputStream dos) {
-        try {
-            dos.writeBytes("HTTP/1.1 302 Found \r\n");
-            dos.writeBytes("Location: /index.html \r\n");
-            dos.writeBytes("\r\n");
-        } catch (IOException e) {
-            log.error(e.getMessage());
-        }
-    }
-
-    private void responseBody(DataOutputStream dos, byte[] body) {
-        try {
-            dos.write(body, 0, body.length);
-            dos.flush();
-        } catch (IOException e) {
-            log.error(e.getMessage());
-        }
+        return path;
     }
 }

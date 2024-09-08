@@ -3,16 +3,15 @@ package controller;
 import db.DataBase;
 import http.HttpRequest;
 import http.HttpResponse;
-import java.util.Map;
+import http.HttpSession;
 import model.User;
-import util.HttpRequestUtils;
 
 public class ListUserController extends AbstractController{
 
     public void doPost(HttpRequest request, HttpResponse response) {
-        Map<String, String> cookies = HttpRequestUtils.parseCookies(request.getHeader("Cookie"));
+        HttpSession session = request.getSession();
 
-        if (isLogin(cookies.get("logined"))) {
+        if (isLogin(session)) {
             StringBuilder userList = new StringBuilder();
 
             int index = 1;
@@ -33,7 +32,7 @@ public class ListUserController extends AbstractController{
         }
     }
 
-    private boolean isLogin(String loginedCookie) {
-        return Boolean.parseBoolean(loginedCookie);
+    private boolean isLogin(HttpSession session) {
+        return session.getAttribute("user") != null;
     }
 }

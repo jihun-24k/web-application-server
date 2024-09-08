@@ -58,6 +58,14 @@ public class HttpRequest {
         header.put(info[0].trim(), info[1].trim());
     }
 
+    public HttpCookies getCookies() {
+        return new HttpCookies(getHeader("Cookie"));
+    }
+
+    public HttpSession getSession() {
+        return HttpSessions.getSession(getCookies().getCookie("JSESSION"));
+    }
+
     public HttpMethod getMethod() {
         return requestLine.getMethod();
     }
